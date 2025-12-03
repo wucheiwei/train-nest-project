@@ -19,11 +19,11 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "prisma:merge": "prisma-import -s ./prisma/schema-base.prisma -s ./prisma/models/*.prisma -o ./prisma/schema.prisma -f",
-    "prisma:generate": "npm run prisma:merge && prisma generate",
-    "prisma:migrate": "npm run prisma:merge && prisma migrate dev",
-    "prisma:dev": "npm run prisma:merge && prisma generate && prisma migrate dev",
-    "prisma:studio": "npm run prisma:merge && prisma studio",
-    "prisma:format": "npm run prisma:merge && prisma format"
+    "prisma:generate": "npm run prisma:merge && prisma generate --schema=./prisma/schema.prisma",
+    "prisma:migrate": "npm run prisma:merge && prisma migrate dev --schema=./prisma/schema.prisma",
+    "prisma:dev": "npm run prisma:merge && prisma generate --schema=./prisma/schema.prisma && prisma migrate dev --schema=./prisma/schema.prisma",
+    "prisma:studio": "npm run prisma:merge && prisma studio --schema=./prisma/schema.prisma",
+    "prisma:format": "npm run prisma:merge && prisma format --schema=./prisma/schema.prisma"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -84,7 +84,7 @@
     "collectCoverageFrom": [
       "**/*.(t|j)s"
     ],
-    "coverageDirectory": "../coverage",
+    "coverageDirectory": "coverage",
     "testEnvironment": "node"
   }
 }
