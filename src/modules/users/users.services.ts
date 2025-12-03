@@ -7,7 +7,7 @@ import { hashPassword } from "../../common/utils/hash.util";
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
-  async findEmail(email: string): Promise<UserResponseDto | null> {
+  async findEmail(email: string) {
     return this.prisma.user.findUnique({
       where: { email },
     });
