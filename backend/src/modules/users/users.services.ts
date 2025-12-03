@@ -15,12 +15,15 @@ export class UsersService {
 
   async createUser(user: CreateUserDto): Promise<UserResponseDto> {
     const hashedPassword = await hashPassword(user.password);
-    return this.prisma.user.create({
+    const createdUser = await this.prisma.user.create({
       data: {
         email: user.email,
         name: user.name,
         password: hashedPassword,
       },
     });
+    // 移除 password 欄位再返回
+    const { password, ...result } = createdUser;
+    return result as UserResponseDto;
   }
 }

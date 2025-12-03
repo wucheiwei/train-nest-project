@@ -46,7 +46,21 @@ export default {
           this.$router.push('/dashboard');
         }
       } catch (error) {
-        this.errorMessage = error.response?.data?.message || '登入失敗，請檢查您的帳號密碼';
+        console.error('登入錯誤:', error);
+        if (error.response?.data) {
+          const errorData = error.response.data;
+          if (Array.isArray(errorData.message)) {
+            this.errorMessage = errorData.message.join(', ');
+          } else if (errorData.message) {
+            this.errorMessage = errorData.message;
+          } else {
+            this.errorMessage = '登入失敗，請檢查您的帳號密碼';
+          }
+        } else if (error.message) {
+          this.errorMessage = error.message;
+        } else {
+          this.errorMessage = '無法連接到伺服器，請確認後端服務是否運行';
+        }
       } finally {
         this.loading = false;
       }

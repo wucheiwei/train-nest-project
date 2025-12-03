@@ -69,7 +69,24 @@ export default {
           this.$router.push('/login');
         }, 1500);
       } catch (error) {
-        this.errorMessage = error.response?.data?.message || '註冊失敗，請稍後再試';
+        console.error('註冊錯誤:', error);
+        // 處理不同的錯誤格式
+        if (error.response?.data) {
+          const errorData = error.response.data;
+          // NestJS 驗證錯誤格式
+          if (Array.isArray(errorData.message)) {
+            this.errorMessage = errorData.message.join(', ');
+          } else if (errorData.message) {
+            this.errorMessage = errorData.message;
+          } else {
+            this.errorMessage = '註冊失敗，請稍後再試';
+          }
+        } else if (error.message) {
+          // 使用 axios 攔截器處理過的錯誤訊息
+          this.errorMessage = error.message;
+        } else {
+          this.errorMessage = '無法連接到伺服器，請確認後端服務是否運行';
+        }
       } finally {
         this.loading = false;
       }
