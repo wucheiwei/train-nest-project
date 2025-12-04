@@ -1,0 +1,18 @@
+enum MessageRole {
+  user
+  assistant
+  system
+}
+
+model Messages {
+  id             Int         @id @default(autoincrement())
+  conversationId Int
+  role           MessageRole
+  content        String      @db.LongText
+  tokens         Int?
+  createdAt      DateTime    @default(now())
+
+  conversation Conversations @relation(fields: [conversationId], references: [id])
+  @@map("messages")
+}
+

@@ -17,16 +17,57 @@ datasource db {
 }
 
 //
+// conversations.prisma
+//
+
+model Conversations {
+  id        Int        @id @default(autoincrement())
+  userId    Int
+  user      User       @relation(fields: [userId], references: [id])
+  title     String?
+  model     String     @default("gpt-4o")
+  messages  Messages[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@map("conversations")
+}
+
+//
+// messages.prisma
+//
+
+enum MessageRole {
+  user
+  assistant
+  system
+}
+
+model Messages {
+  id             Int         @id @default(autoincrement())
+  conversationId Int
+  role           MessageRole
+  content        String      @db.LongText
+  tokens         Int?
+  createdAt      DateTime    @default(now())
+
+  conversation Conversations @relation(fields: [conversationId], references: [id])
+
+  @@map("messages")
+}
+
+//
 // user.prisma
 //
 
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String?
-  email     String   @unique
-  password  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            Int             @id @default(autoincrement())
+  name          String?
+  email         String          @unique
+  password      String
+  conversations Conversations[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
 
   @@map("users")
 }
