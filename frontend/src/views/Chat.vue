@@ -4,12 +4,34 @@
     <div class="sidebar">
       <div class="sidebar-header">
         <h2>聊天室</h2>
-        <button @click="newChat" class="new-chat-btn" title="新對話">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="12" y1="5" x2="12" y2="19"></line>
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
-        </button>
+        <div style="display: flex; gap: 8px;">
+          <div class="model-selector-wrapper">
+            <button @click="showModelSelector = !showModelSelector" class="model-btn" :title="`當前模型: ${getModelLabel(selectedModel)}`">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="16"></line>
+                <line x1="8" y1="12" x2="16" y2="12"></line>
+              </svg>
+            </button>
+            <div v-if="showModelSelector" class="model-selector-dropdown">
+              <div 
+                v-for="model in availableModels" 
+                :key="model.value"
+                class="model-option"
+                :class="{ active: selectedModel === model.value }"
+                @click="selectModel(model.value)"
+              >
+                {{ model.label }}
+              </div>
+            </div>
+          </div>
+          <button @click="newChat" class="new-chat-btn" title="新對話">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </button>
+        </div>
       </div>
       <div class="chat-history">
         <div 
@@ -107,13 +129,17 @@ export default {
     return {
       inputMessage: '',
       isLoading: false,
-      chatHistory: [
-        {
-          title: '新對話',
-          messages: []
-        }
-      ],
+      chatHistory: [],
       currentChatIndex: 0,
+      currentConversationId: null,
+      selectedModel: 'gpt-4o-mini',
+      showModelSelector: false,
+      availableModels: [
+        { value: 'gpt-4o', label: 'GPT-4o' },
+        { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+        { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
+        { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
+      ],
     };
   },
   computed: {
@@ -121,8 +147,8 @@ export default {
       return this.chatHistory[this.currentChatIndex]?.messages || [];
     }
   },
-  mounted() {
-    this.loadChatHistory();
+  async mounted() {
+    await this.loadConversations();
     this.autoResizeTextarea();
   },
   watch: {
@@ -139,37 +165,41 @@ export default {
     async sendMessage() {
       if (!this.inputMessage.trim() || this.isLoading) return;
 
-      const userMessage = {
-        role: 'user',
-        content: this.inputMessage.trim(),
-        timestamp: new Date()
-      };
-
-      // 添加用戶訊息
-      this.chatHistory[this.currentChatIndex].messages.push(userMessage);
+      const messageText = this.inputMessage.trim();
       this.inputMessage = '';
-      this.scrollToBottom();
-      this.saveChatHistory();
 
-      // 如果是新對話，設置標題
-      if (this.currentMessages.length === 1) {
-        this.chatHistory[this.currentChatIndex].title = 
-          userMessage.content.substring(0, 30) + (userMessage.content.length > 30 ? '...' : '');
+      // 如果沒有當前對話，先創建一個
+      if (!this.currentConversationId) {
+        await this.createNewConversation();
       }
 
-      // 發送請求
+      // 添加用戶訊息到 UI
+      const userMessage = {
+        role: 'user',
+        content: messageText,
+        timestamp: new Date()
+      };
+      this.chatHistory[this.currentChatIndex].messages.push(userMessage);
+      this.scrollToBottom();
+
+      // 發送請求到後端
       this.isLoading = true;
       try {
-        const response = await chatAPI.sendMessage(this.currentMessages);
+        const response = await chatAPI.sendMessage(this.currentConversationId, messageText);
         
         const assistantMessage = {
           role: 'assistant',
-          content: response.message || response.content || '抱歉，我無法理解您的問題。',
+          content: response.text || response.message || '抱歉，我無法理解您的問題。',
           timestamp: new Date()
         };
 
         this.chatHistory[this.currentChatIndex].messages.push(assistantMessage);
-        this.saveChatHistory();
+        
+        // 更新對話標題（如果是第一條訊息）
+        if (this.chatHistory[this.currentChatIndex].messages.length === 2) {
+          this.chatHistory[this.currentChatIndex].title = 
+            messageText.substring(0, 30) + (messageText.length > 30 ? '...' : '');
+        }
       } catch (error) {
         console.error('發送訊息錯誤:', error);
         const errorMessage = {
@@ -181,6 +211,70 @@ export default {
       } finally {
         this.isLoading = false;
         this.scrollToBottom();
+      }
+    },
+    async createNewConversation() {
+      try {
+        const conversation = await chatAPI.createConversation({
+          title: null,
+          model: this.selectedModel
+        });
+        this.currentConversationId = conversation.id;
+        this.chatHistory[this.currentChatIndex].id = conversation.id;
+        this.chatHistory[this.currentChatIndex].model = this.selectedModel;
+      } catch (error) {
+        console.error('創建對話錯誤:', error);
+        throw new Error('無法創建新對話');
+      }
+    },
+    selectModel(modelValue) {
+      this.selectedModel = modelValue;
+      this.showModelSelector = false;
+      // 如果當前對話已存在，可以選擇更新模型（需要後端支持）
+    },
+    getModelLabel(modelValue) {
+      const model = this.availableModels.find(m => m.value === modelValue);
+      return model ? model.label : modelValue;
+    },
+    async loadConversations() {
+      try {
+        const conversations = await chatAPI.getMyConversations();
+        if (conversations && conversations.length > 0) {
+          // 轉換為前端格式
+          this.chatHistory = conversations.map(conv => ({
+            id: conv.id,
+            title: conv.title || '新對話',
+            messages: []
+          }));
+          // 載入第一個對話的訊息
+          if (this.chatHistory.length > 0) {
+            this.currentChatIndex = 0;
+            this.currentConversationId = this.chatHistory[0].id;
+            await this.loadConversationMessages(this.chatHistory[0].id);
+          }
+        } else {
+          // 如果沒有對話，創建一個新的
+          this.chatHistory = [{
+            title: '新對話',
+            messages: []
+          }];
+        }
+      } catch (error) {
+        console.error('載入對話列表錯誤:', error);
+        // 如果載入失敗，至少顯示一個空對話
+        this.chatHistory = [{
+          title: '新對話',
+          messages: []
+        }];
+      }
+    },
+    async loadConversationMessages(conversationId) {
+      try {
+        const conversation = await chatAPI.getConversation(conversationId);
+        // 這裡需要後端返回訊息列表，暫時先不處理
+        // 可以後續添加 messages API
+      } catch (error) {
+        console.error('載入對話訊息錯誤:', error);
       }
     },
     scrollToBottom() {
@@ -210,16 +304,30 @@ export default {
       }
       return date.toLocaleString('zh-TW', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
     },
-    newChat() {
+    async newChat() {
       this.chatHistory.unshift({
         title: '新對話',
         messages: []
       });
       this.currentChatIndex = 0;
-      this.saveChatHistory();
+      this.currentConversationId = null;
     },
-    selectChat(index) {
+    async selectChat(index) {
       this.currentChatIndex = index;
+      const chat = this.chatHistory[index];
+      if (chat.id) {
+        this.currentConversationId = chat.id;
+        // 更新選中的模型
+        if (chat.model) {
+          this.selectedModel = chat.model;
+        }
+        // 如果訊息列表為空，載入訊息
+        if (chat.messages.length === 0) {
+          await this.loadConversationMessages(chat.id);
+        }
+      } else {
+        this.currentConversationId = null;
+      }
     },
     deleteChat(index) {
       if (confirm('確定要刪除這個對話嗎？')) {
@@ -230,27 +338,6 @@ export default {
         if (this.chatHistory.length === 0) {
           this.newChat();
         }
-        this.saveChatHistory();
-      }
-    },
-    saveChatHistory() {
-      try {
-        localStorage.setItem('chatHistory', JSON.stringify(this.chatHistory));
-        localStorage.setItem('currentChatIndex', this.currentChatIndex.toString());
-      } catch (error) {
-        console.error('保存聊天記錄失敗:', error);
-      }
-    },
-    loadChatHistory() {
-      try {
-        const saved = localStorage.getItem('chatHistory');
-        const savedIndex = localStorage.getItem('currentChatIndex');
-        if (saved) {
-          this.chatHistory = JSON.parse(saved);
-          this.currentChatIndex = savedIndex ? parseInt(savedIndex) : 0;
-        }
-      } catch (error) {
-        console.error('載入聊天記錄失敗:', error);
       }
     },
     autoResizeTextarea() {
@@ -267,8 +354,6 @@ export default {
     logout() {
       if (confirm('確定要登出嗎？')) {
         localStorage.removeItem('access_token');
-        localStorage.removeItem('chatHistory');
-        localStorage.removeItem('currentChatIndex');
         this.$router.push('/login');
       }
     }
@@ -403,6 +488,60 @@ export default {
 
 .logout-btn:hover {
   background: rgba(255, 255, 255, 0.15);
+}
+
+/* 模型選擇器 */
+.model-selector-wrapper {
+  position: relative;
+}
+
+.model-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.model-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.model-selector-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 8px;
+  background: #343541;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  min-width: 180px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+  overflow: hidden;
+}
+
+.model-option {
+  padding: 12px 16px;
+  color: white;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-size: 14px;
+}
+
+.model-option:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.model-option.active {
+  background: rgba(255, 255, 255, 0.15);
+  font-weight: 500;
 }
 
 /* 主聊天區域 */
