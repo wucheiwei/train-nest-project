@@ -2,7 +2,10 @@
   <div class="container">
     <h1>歡迎！</h1>
     <p class="subtitle">您已成功登入</p>
-    <div style="margin-top: 20px;">
+    <div style="margin-top: 20px; display: flex; gap: 12px; flex-direction: column;">
+      <router-link to="/chat" class="btn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); text-decoration: none; display: block; text-align: center;">
+        進入聊天室
+      </router-link>
       <button @click="logout" class="btn" style="background: #e74c3c;">登出</button>
     </div>
   </div>
