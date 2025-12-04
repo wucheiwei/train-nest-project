@@ -4,11 +4,24 @@ import type { ChatCompletionMessageParam } from "openai/resources/chat/completio
 
 @Injectable()
 export class OpenAIProvider {
-  private client = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-  });
+  private client: OpenAI | null = null;
+
+  constructor() {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (apiKey) {
+      this.client = new OpenAI({
+        apiKey: apiKey,
+      });
+    } else {
+      console.warn('⚠️  OPENAI_API_KEY 未設置，聊天功能將無法使用');
+    }
+  }
 
   async chat(messages: ChatCompletionMessageParam[], model = 'gpt-4o-mini') {
+    if (!this.client) {
+      throw new Error('OpenAI API Key 未設置，請在 .env 文件中設置 OPENAI_API_KEY');
+    }
+    
     const response = await this.client.chat.completions.create({
       model,
       messages,

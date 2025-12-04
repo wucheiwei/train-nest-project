@@ -2,7 +2,8 @@ import { IsNotEmpty, IsString, IsInt, IsOptional } from "class-validator";
 
 export class CreateConversationDto {
   @IsString()
-  title: string;
+  @IsOptional()
+  title?: string;
 
   @IsString()
   @IsOptional()

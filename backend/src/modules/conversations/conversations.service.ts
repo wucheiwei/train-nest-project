@@ -6,7 +6,7 @@ import { CreateConversationDto } from "./dto/create-conversation.dto";
 export class ConversationsService {
   constructor(private prisma: PrismaService) {}
 
-  create(dto: CreateConversationDto, userId: number) {
+  async create(dto: CreateConversationDto, userId: number) {
     return this.prisma.conversations.create({
       data: {
         ...dto,

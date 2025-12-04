@@ -9,7 +9,7 @@ export class ConversationsController {
   constructor(private conversationsService: ConversationsService) {}
 
   @Post()
-  create(@GetUser('id') userId: number, @Body() createConversationDto: CreateConversationDto) {
+  async create(@GetUser('id') userId: number, @Body() createConversationDto: CreateConversationDto) {
     return this.conversationsService.create(createConversationDto, userId);
   }
 

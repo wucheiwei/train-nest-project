@@ -163,14 +163,33 @@ export default {
   },
   methods: {
     async sendMessage() {
-      if (!this.inputMessage.trim() || this.isLoading) return;
+      if (!this.inputMessage.trim() || this.isLoading) {
+        console.log('訊息為空或正在載入中，無法發送');
+        return;
+      }
 
       const messageText = this.inputMessage.trim();
       this.inputMessage = '';
 
+      console.log('準備發送訊息:', messageText);
+      console.log('當前對話 ID:', this.currentConversationId);
+
       // 如果沒有當前對話，先創建一個
       if (!this.currentConversationId) {
-        await this.createNewConversation();
+        console.log('沒有對話 ID，創建新對話...');
+        try {
+          await this.createNewConversation();
+        } catch (error) {
+          console.error('創建對話失敗:', error);
+          const errorMessage = {
+            role: 'assistant',
+            content: `錯誤：無法創建新對話 - ${error.message}`,
+            timestamp: new Date()
+          };
+          this.chatHistory[this.currentChatIndex].messages.push(errorMessage);
+          this.isLoading = false;
+          return;
+        }
       }
 
       // 添加用戶訊息到 UI
@@ -202,6 +221,12 @@ export default {
         }
       } catch (error) {
         console.error('發送訊息錯誤:', error);
+        console.error('錯誤詳情:', {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status,
+          conversationId: this.currentConversationId
+        });
         const errorMessage = {
           role: 'assistant',
           content: `錯誤：${error.message || '無法連接到伺服器，請稍後再試'}`,
@@ -215,16 +240,28 @@ export default {
     },
     async createNewConversation() {
       try {
+        console.log('創建新對話，模型:', this.selectedModel);
         const conversation = await chatAPI.createConversation({
           title: null,
           model: this.selectedModel
         });
+        console.log('對話創建成功:', conversation);
+        if (!conversation || !conversation.id) {
+          throw new Error('創建對話失敗：未返回對話 ID');
+        }
         this.currentConversationId = conversation.id;
         this.chatHistory[this.currentChatIndex].id = conversation.id;
         this.chatHistory[this.currentChatIndex].model = this.selectedModel;
       } catch (error) {
         console.error('創建對話錯誤:', error);
-        throw new Error('無法創建新對話');
+        console.error('錯誤詳情:', {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status,
+          stack: error.stack
+        });
+        const errorMsg = error.response?.data?.message || error.message || '無法創建新對話';
+        throw new Error(errorMsg);
       }
     },
     selectModel(modelValue) {

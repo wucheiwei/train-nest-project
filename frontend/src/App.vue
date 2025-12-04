@@ -35,13 +35,17 @@ body:has(.chat-container) {
 /* 確保聊天容器佔滿整個視窗 */
 #app {
   width: 100%;
-  height: 100vh;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 #app:has(.chat-container) {
   width: 100%;
   height: 100vh;
   display: block;
+  align-items: stretch;
 }
 </style>
 

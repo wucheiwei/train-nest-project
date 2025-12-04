@@ -19,9 +19,14 @@ apiClient.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    console.log('發送請求:', config.method?.toUpperCase(), config.url, {
+      data: config.data,
+      headers: { ...config.headers, Authorization: token ? 'Bearer ***' : 'none' }
+    });
     return config;
   },
   (error) => {
+    console.error('請求攔截器錯誤:', error);
     return Promise.reject(error);
   }
 );
@@ -29,6 +34,7 @@ apiClient.interceptors.request.use(
 // 添加響應攔截器
 apiClient.interceptors.response.use(
   (response) => {
+    console.log('收到響應:', response.status, response.config.url, response.data);
     return response;
   },
   (error) => {
